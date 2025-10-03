@@ -1,5 +1,6 @@
 # agent_DQN.py
 
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,6 +8,7 @@ import random
 import numpy as np
 import csv
 import cv2
+from collections import deque
 
 from models import Model
 from buffer import ReplayMemory
@@ -17,7 +19,7 @@ class Agent:
     DQN Agent that interacts with and learns from the environment.
     """
     def __init__(self, env, replay_memory_size, batch_size, target_update,
-                 gamma, lr, epsilon_start, epsilon_end, epsilon_decay,device='cpu'):
+                 gamma, lr, epsilon_start, epsilon_end, epsilon_decay,device='cpu',frame_stack_size=4):
         """
         Initializes the Agent.
 
@@ -44,15 +46,15 @@ class Agent:
         self.EPSILON_START = epsilon_start
         self.EPSILON_END = epsilon_end
         self.EPSILON_DECAY = epsilon_decay
+        self.frame_stack_size = frame_stack_size
         
         # --- Internal State ---
         self.steps_done = 0
         self.epsilon=epsilon_start
-        self.current_epsilon = epsilon_start
         # --- Networks ---
-        self.policy_net = Model(self.action_space_n).to(device)
-        self.target_net = Model(self.action_space_n).to(device)
-        
+        self.policy_net = Model(self.action_space_n, frame_stack_size).to(device)
+        self.target_net = Model(self.action_space_n, frame_stack_size).to(device)
+
         # Load pre-existing model if available, otherwise initialize target_net from policy_net
         try:
             self.policy_net.load_the_model()
@@ -79,7 +81,8 @@ class Agent:
         """
         sample = random.random()
         # Calculate current epsilon
-        self.epsilon = max(self.EPSILON_END, self.epsilon - self.EPSILON_DECAY)
+        self.epsilon = self.EPSILON_END + (self.EPSILON_START - self.EPSILON_END) * \
+                       math.exp(-1. * self.steps_done / self.EPSILON_DECAY)
         self.steps_done += 1
 
         if sample > self.epsilon:
@@ -138,11 +141,14 @@ class Agent:
             writer.writerow(['Epoch', 'Total Reward', 'Epsilon', 'Loss'])
 
         for epoch in range(num_epochs):
-            observation, info = self.env.reset()
-            state = preprocess_frame(observation)
+            observation, info = self.env.reset() 
+            # Initialize the frame stack
+            frame = preprocess_frame(observation)
+            # Stack the first frame 4 times
+            state_stack = deque([frame] * self.frame_stack_size, maxlen=self.frame_stack_size)
             
-            # Add the channel and batch dimensions
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0).to(self.device)
+            # Convert the stack to a single tensor
+            state_tensor = torch.FloatTensor(np.array(state_stack)).unsqueeze(0).to(self.device)
             
             total_epoch_reward = 0
             done = False
@@ -158,9 +164,10 @@ class Agent:
                 total_epoch_reward += reward
                 done = terminated or truncated
 
-                next_state = preprocess_frame(observation)
-                next_state_tensor = torch.FloatTensor(next_state).unsqueeze(0).unsqueeze(0).to(self.device) 
-
+                next_frame = preprocess_frame(observation)
+                next_state_stack = deque(list(state_stack)[1:] + [next_frame], maxlen=self.frame_stack_size)
+                next_state_tensor = torch.FloatTensor(np.array(next_state_stack)).unsqueeze(0).to(self.device)
+        
                 # Store the transition in memory
                 action_tensor = torch.tensor([[action]], dtype=torch.long).to(self.device)
                 reward_tensor = torch.tensor([reward], dtype=torch.float32).to(self.device)
@@ -168,28 +175,29 @@ class Agent:
                 self.memory.push(state_tensor, action_tensor, next_state_tensor, reward_tensor, done_tensor)
 
                 # Move to the next state
+                state_stack = next_state_stack
                 state_tensor = next_state_tensor
 
                 # Perform one step of optimization
                 loss = self._optimize_model()
+                if self.steps_done % self.TARGET_UPDATE == 0:
+                    print(f"\n--- 🎯 Updating Target Network at step {self.steps_done} --- \n")
+                    self.policy_net.save_the_model()
+                    self.target_net.load_state_dict(self.policy_net.state_dict())
                 if loss is not None:
                     last_loss = loss
 
                 if done:
                     break
 
-            self.current_epsilon = max(self.EPSILON_END, self.current_epsilon - self.EPSILON_DECAY)
-            print(f"Epoch: {epoch}, Reward: {total_epoch_reward}, Epsilon: {self.current_epsilon:.4f}, Loss: {last_loss:.4f}")
+            print(f"Epoch: {epoch}, Reward: {total_epoch_reward}, Epsilon: {self.epsilon:.4f}, Loss: {last_loss:.4f}, Memory Size: {len(self.memory)}")
 
             with open(log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([epoch, total_epoch_reward, self.current_epsilon, last_loss])
+                writer.writerow([epoch, total_epoch_reward, self.epsilon, last_loss])
 
             # Update the target network
-            if epoch % self.TARGET_UPDATE == 0:
-                print(f"\n--- 🎯 Updating Target Network at epoch {epoch} --- \n")
-                self.policy_net.save_the_model()
-                self.target_net.load_state_dict(self.policy_net.state_dict())
+            
                 
         print("Training finished.")
 
@@ -204,9 +212,14 @@ class Agent:
         self.policy_net.eval()  # Set the network to evaluation mode (no gradients)
 
         for episode in range(num_episodes):
-            observation, info = self.env.reset()
-            state = preprocess_frame(observation)
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).unsqueeze(0)
+            observation, info = self.env.reset() 
+            # Initialize the frame stack
+            frame = preprocess_frame(observation)
+            # Stack the first frame 4 times
+            state_stack = deque([frame] * self.frame_stack_size, maxlen=self.frame_stack_size)
+            
+            # Convert the stack to a single tensor
+            state_tensor = torch.FloatTensor(np.array(state_stack)).unsqueeze(0).to(self.device)
             
             total_reward = 0
             done = False
@@ -223,13 +236,18 @@ class Agent:
                     action = self.policy_net(state_tensor).argmax().item()
 
                 observation, reward, terminated, truncated, info = self.env.step(action)
+                
                 total_reward += reward
-                done = terminated or truncated
 
-                # Prepare the next state
-                if not done:
-                    next_state = preprocess_frame(observation)
-                    state_tensor = torch.FloatTensor(next_state).unsqueeze(0).unsqueeze(0)
+                next_frame = preprocess_frame(observation)
+                next_state_stack = deque(list(state_stack)[1:] + [next_frame], maxlen=self.frame_stack_size)
+                next_state_tensor = torch.FloatTensor(np.array(next_state_stack)).unsqueeze(0).to(self.device)
+        
+                print("moved")
+                # Move to the next state
+                state_stack = next_state_stack
+                state_tensor = next_state_tensor
+                
 
                 # Control frame rate and allow user to quit with 'q'
                 if cv2.waitKey(25) & 0xFF == ord('q'):

@@ -4,11 +4,11 @@ import torch.nn as nn
 
 # --- Model Definition (from your models.py) ---
 class Model(nn.Module):
-    def __init__(self, output_size=4):
+    def __init__(self, output_size=4, frame_stack_size=4):
         super(Model, self).__init__()
         self.relu = nn.ReLU()
         # Expects a 1-channel (grayscale) image
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=8, stride=4)
+        self.conv1 = nn.Conv2d(frame_stack_size, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
 

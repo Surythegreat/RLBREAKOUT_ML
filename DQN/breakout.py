@@ -1,6 +1,7 @@
 # train_breakout.py
-
+import ale_py
 import gymnasium as gym
+gym.register_envs(ale_py)
 from agent_DQN import Agent
 import torch
 
@@ -11,15 +12,16 @@ if __name__ == '__main__':
     
     # --- Hyperparameters ---
     config = {
-        'target_update': 20,
-        'replay_memory_size': 10000,
+        'target_update': 10000,
+        'replay_memory_size': 60000,
         'batch_size': 32,
-        'learning_rate': 0.0001,
-        'epochs': 20000,
+        'learning_rate': 0.00025,
+        'epochs': 1000000,
         'gamma': 0.99,
         'epsilon_start': 1.0,
-        'epsilon_end': 0.05,
-        'epsilon_decay': 0.0001,
+        'epsilon_end': 0.005,
+        'epsilon_decay': 1000000,
+        'frame_stack_size': 4
     }
     
     # --- Agent Initialization ---
@@ -33,11 +35,12 @@ if __name__ == '__main__':
         epsilon_start=config['epsilon_start'],
         epsilon_end=config['epsilon_end'],
         epsilon_decay=config['epsilon_decay'],
-        device='cuda' if torch.cuda.is_available() else 'cpu'
+        device='cuda' if torch.cuda.is_available() else 'cpu',
+        frame_stack_size=config['frame_stack_size']
     )
     print(f"Using device: {agent.memory.device}")
     
     # --- Start Training ---
-    agent.train(num_epochs=config['epochs'])
+    agent.test(num_episodes=3)
     
     env.close()

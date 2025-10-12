@@ -1,32 +1,70 @@
+import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-class LivePlot():
-    def __init__(self):
-        # Initialize the figure and axes, storing the axes in self.ax
-        self.fig, self.ax = plt.subplots()
-        self.ax.set_xlabel('Episode')
-        self.ax.set_ylabel('Reward')
-        self.ax.set_title('Training Progress')
+def plot_training_data(log_file='training_log.csv', output_dir='plots'):
+    """
+    Reads the training log and generates a single figure with plots for 
+    reward, loss, and epsilon overlaid on one another.
+    """
+    # Check if the log file exists
+    if not os.path.exists(log_file):
+        print(f"Error: Log file '{log_file}' not found.")
+        return
 
-        self.data = None
-        self.epochs = 0 
+    # Create the output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
 
-    def update(self, stats):
-        self.data = stats['avgreturns']
-        self.eps_data = stats['epsilon']
-        self.epochs = len(self.data)
+    # Read the data using pandas
+    data = pd.read_csv(log_file)
+    
+    # Calculate a moving average to smooth the curves (optional but recommended)
+    window_size = 100
+    data['Smoothed Reward'] = data['return'].rolling(window=window_size, min_periods=1).mean()
+    loss_data = data[data['loss'] > 0].copy() # Use .copy() to avoid SettingWithCopyWarning
+    loss_data['Smoothed Loss'] = loss_data['loss'].rolling(window=window_size, min_periods=1).mean() 
 
-        # Use self.ax, which was defined in __init__
-        self.ax.clear() 
-        self.ax.set_xlim(0, self.epochs)
+    # --- Create a single figure and a primary axis ---
+    fig, ax1 = plt.subplots(figsize=(12, 8))
+    fig.suptitle('Training Progress Overview', fontsize=16)
 
-        self.ax.plot(self.data, label='Average Returns')
-        self.ax.plot(self.eps_data, 'r-', label='Epsilon')
+    # --- Plot 1: Smoothed Reward (Primary Y-axis, left) ---
+    color = 'tab:red'
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Smoothed Reward', color=color)
+    ax1.plot(data['Epoch'], data['Smoothed Reward'], color=color, label='Smoothed Reward')
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
 
-        self.ax.legend(loc='upper left')
+    # --- Create a secondary axis that shares the same x-axis ---
+    ax2 = ax1.twinx()  
 
-        # Create directory if it doesn't exist and save the plot
-        if not os.path.exists('plots'):
-            os.makedirs('plots')
-        self.fig.savefig('plots/training_progress.png')
+    # --- Plot 2: Smoothed Loss (Secondary Y-axis, right) ---
+    color = 'tab:orange'
+    ax2.set_ylabel('Loss / epsilon') # Shared label for the right axis
+    ax2.plot(loss_data['Epoch'], loss_data['Smoothed Loss'], color=color, label='Smoothed Loss')
+    ax2.tick_params(axis='y')
+
+    color = 'tab:green'
+    ax2.plot(data['Epoch'], data['epsilon'], color=color, label='epsilon')
+   
+
+    # --- Create a unified legend ---
+    # To avoid overlapping legends, we manually combine them.
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+
+    # Adjust layout to prevent titles and labels from overlapping
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
+    # Save the combined figure
+    output_path = os.path.join(output_dir, 'overlaid_training_plot.png')
+    plt.savefig(output_path)
+    plt.close()
+    
+    print(f"📈 Overlaid plot has been saved to '{output_path}'.")
+
+if __name__ == '__main__':
+    plot_training_data()
+

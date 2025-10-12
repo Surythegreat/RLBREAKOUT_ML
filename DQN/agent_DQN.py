@@ -8,7 +8,9 @@ import random
 import numpy as np
 import csv
 import cv2
+import os
 from collections import deque
+import torch.nn.functional as F
 
 from models import Model
 from buffer import ReplayMemory
@@ -45,12 +47,13 @@ class Agent:
         self.GAMMA = gamma
         self.EPSILON_START = epsilon_start
         self.EPSILON_END = epsilon_end
-        self.EPSILON_DECAY = epsilon_decay
+        # self.EPSILON_DECAY = epsilon_decay
         self.frame_stack_size = frame_stack_size
         
         # --- Internal State ---
         self.steps_done = 0
         self.epsilon=epsilon_start
+        self.EPSILON_DECAY =1 - (((epsilon_start - epsilon_end) / epsilon_decay) * 2)
         # --- Networks ---
         self.policy_net = Model(self.action_space_n, frame_stack_size).to(device)
         self.target_net = Model(self.action_space_n, frame_stack_size).to(device)
@@ -81,52 +84,51 @@ class Agent:
         """
         sample = random.random()
         # Calculate current epsilon
-        self.epsilon = self.EPSILON_END + (self.EPSILON_START - self.EPSILON_END) * \
-                       math.exp(-1. * self.steps_done / self.EPSILON_DECAY)
+        
         self.steps_done += 1
 
         if sample > self.epsilon:
             with torch.no_grad():
                 # Get Q-values from the policy network and choose the best action
-                q_values = self.policy_net(state_tensor)
+                q_values = self.policy_net(state_tensor.to(self.device)).cpu()
                 return torch.argmax(q_values).item()
         else:
             # Choose a random action
             return self.env.action_space.sample()
 
-    def _optimize_model(self):
-        """
-        Performs one step of optimization on the policy network.
+    # def _optimize_model(self):
+    #     """
+    #     Performs one step of optimization on the policy network.
         
-        Returns:
-            float or None: The loss value if training was performed, otherwise None.
-        """
-        if len(self.memory) < self.BATCH_SIZE:
-            return None  # Not enough experiences to train yet
+    #     Returns:
+    #         float or None: The loss value if training was performed, otherwise None.
+    #     """
+    #     if len(self.memory) < self.BATCH_SIZE*10:
+    #         return None  # Not enough experiences to train yet
 
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample(self.BATCH_SIZE)
+    #     state_batch, action_batch,  next_state_batch,reward_batch, done_batch = self.memory.sample(self.BATCH_SIZE)
 
 
-        # Get the Q-values for the actions that were actually taken
-        predicted_q_values = self.policy_net(state_batch).gather(1, action_batch)
+    #     # Get the Q-values for the actions that were actually taken
+    #     predicted_q_values = self.policy_net(state_batch).gather(1, action_batch)
 
-        # Get the max Q-values for the next states from the target network
-        with torch.no_grad():
-            next_state_q_values = self.target_net(next_state_batch).max(1)[0]
+    #     # Get the max Q-values for the next states from the target network
+    #     with torch.no_grad():
+    #         next_state_q_values = self.target_net(next_state_batch).max(1)[0]
         
-        # Compute the expected Q values (target)
-        # If the state was terminal (done), the future reward is 0
-        target_q_values = (next_state_q_values * self.GAMMA * (1 - done_batch)) + reward_batch
+    #     # Compute the expected Q values (target)
+    #     # If the state was terminal (done), the future reward is 0
+    #     target_q_values = (next_state_q_values * self.GAMMA * (1 - done_batch)) + reward_batch
 
-        # Compute loss
-        loss = self.loss_fn(predicted_q_values, target_q_values.unsqueeze(1))
+    #     # Compute loss
+    #     loss = self.loss_fn(predicted_q_values, target_q_values.unsqueeze(1))
 
-        # Backpropagation
-        self.optimizer.zero_grad()
-        loss.backward()
-        # Gradient clipping can be added here if needed: torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
-        self.optimizer.step()
-        return loss.item()
+    #     # Backpropagation
+    #     self.optimizer.zero_grad()
+    #     loss.backward()
+    #     # Gradient clipping can be added here if needed: torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+    #     self.optimizer.step()
+    #     return loss.item()
 
     def train(self, num_epochs):
         """
@@ -135,10 +137,10 @@ class Agent:
         Args:
             num_epochs (int): The total number of episodes to train for.
         """
-        log_file = 'training_log.csv'
-        with open(log_file, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['Epoch', 'Total Reward', 'Epsilon', 'Loss'])
+        log_file = 'DQN/training_log.csv'
+        # with open(log_file, 'w', newline='') as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow(['Epoch', 'Total Reward', 'Epsilon', 'Loss'])
 
         for epoch in range(num_epochs):
             observation, info = self.env.reset() 
@@ -148,7 +150,7 @@ class Agent:
             state_stack = deque([frame] * self.frame_stack_size, maxlen=self.frame_stack_size)
             
             # Convert the stack to a single tensor
-            state_tensor = torch.FloatTensor(np.array(state_stack)).unsqueeze(0).to(self.device)
+            state_tensor = torch.FloatTensor(np.array(state_stack)).unsqueeze(0)
             
             total_epoch_reward = 0
             done = False
@@ -166,22 +168,45 @@ class Agent:
 
                 next_frame = preprocess_frame(observation)
                 next_state_stack = deque(list(state_stack)[1:] + [next_frame], maxlen=self.frame_stack_size)
-                next_state_tensor = torch.FloatTensor(np.array(next_state_stack)).unsqueeze(0).to(self.device)
+                next_state_tensor = torch.FloatTensor(np.array(next_state_stack)).unsqueeze(0)
         
                 # Store the transition in memory
-                action_tensor = torch.tensor([[action]], dtype=torch.long).to(self.device)
-                reward_tensor = torch.tensor([reward], dtype=torch.float32).to(self.device)
-                done_tensor = torch.tensor([done], dtype=torch.float32).to(self.device)
-                self.memory.push(state_tensor, action_tensor, next_state_tensor, reward_tensor, done_tensor)
-
+                action_tensor = torch.tensor([[action]], dtype=torch.long)
+                reward_tensor = torch.tensor([reward], dtype=torch.float32)
+                done_tensor = torch.tensor([done], dtype=torch.bool)
+                self.memory.add([state_tensor, action_tensor, next_state_tensor, reward_tensor, done_tensor])
+                
                 # Move to the next state
                 state_stack = next_state_stack
                 state_tensor = next_state_tensor
+                loss =F.mse_loss(torch.tensor([0.0]),torch.tensor([0.0]))
+                if self.memory.can_sample(self.BATCH_SIZE):
+                    state_b, action_b, next_state_b, reward_b, done_b,tree_index,is_weights = self.memory.sample(self.BATCH_SIZE)
 
-                # Perform one step of optimization
-                loss = self._optimize_model()
+                    qsa_b = self.policy_net(state_b).gather(1, action_b)
+                    
+                    with torch.no_grad(): # Use no_grad for target calculation
+                        next_qsa_b = self.target_net(next_state_b)
+                        next_qsa_b = torch.max(next_qsa_b, dim=-1, keepdim=True)[0]
+
+                        reward_b = reward_b.view(-1, 1)
+                        done_b = done_b.view(-1, 1)
+                        
+                        target_b = reward_b + ~done_b * self.GAMMA * next_qsa_b
+
+                    td_errors = (target_b - qsa_b).abs().squeeze().detach().cpu().numpy()
+
+                    # 4. Calculate the loss, now weighted by is_weights
+                    loss = (is_weights * (qsa_b - target_b).pow(2)).mean()
+                    self.policy_net.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
+
+                    self.memory.update_priorities(tree_index, td_errors)
+
+
                 if self.steps_done % self.TARGET_UPDATE == 0:
-                    print(f"\n--- 🎯 Updating Target Network at step {self.steps_done} --- \n")
+                    # print(f"\n--- 🎯 Updating Target Network at step {self.steps_done} --- \n")
                     self.policy_net.save_the_model()
                     self.target_net.load_state_dict(self.policy_net.state_dict())
                 if loss is not None:
@@ -191,72 +216,90 @@ class Agent:
                     break
 
             print(f"Epoch: {epoch}, Reward: {total_epoch_reward}, Epsilon: {self.epsilon:.4f}, Loss: {last_loss:.4f}, Memory Size: {len(self.memory)}")
-
+            self.epsilon = max(self.EPSILON_END, self.epsilon*self.EPSILON_DECAY)
             with open(log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([epoch, total_epoch_reward, self.epsilon, last_loss])
+                writer.writerow([epoch+31754, total_epoch_reward, self.epsilon, last_loss.item()])
 
-            # Update the target network
-            
-                
+
         print("Training finished.")
 
     def test(self, num_episodes):
         """
-        Tests the trained agent's performance by rendering the gameplay.
+        Tests the trained agent's performance by rendering and saving gameplay videos.
 
         Args:
-            num_episodes (int): The number of episodes to run for testing.
+            num_episodes (int): Number of episodes to run for testing.
         """
         print("\n--- 🚀 Starting Test Phase ---")
-        self.policy_net.eval()  # Set the network to evaluation mode (no gradients)
+        self.policy_net.eval()  # Evaluation mode (no gradients)
+
+        # Ensure the video output directory exists
+        video_dir = "DQN/Video"
+        os.makedirs(video_dir, exist_ok=True)
 
         for episode in range(num_episodes):
-            observation, info = self.env.reset() 
-            # Initialize the frame stack
+            observation, info = self.env.reset()
             frame = preprocess_frame(observation)
-            # Stack the first frame 4 times
+
+            # Initialize state stack
             state_stack = deque([frame] * self.frame_stack_size, maxlen=self.frame_stack_size)
-            
-            # Convert the stack to a single tensor
             state_tensor = torch.FloatTensor(np.array(state_stack)).unsqueeze(0).to(self.device)
-            
+
             total_reward = 0
+            step_count = 0
             done = False
-            
+
+            # Get initial rendered frame to determine video resolution
+            frame_rgb = self.env.render()
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            height, width, _ = frame_bgr.shape
+
+            # Set up the video writer
+            video_path = os.path.join(video_dir, f"episode_{episode + 1}.mp4")
+            fps = 30  # target frame rate for saved video
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
+
             while not done:
-                # Render the environment and display it
-                frame = self.env.render()
-                # Gymnasium returns RGB, OpenCV expects BGR, so we convert
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # Render and record current frame
+                frame_rgb = self.env.render()
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 cv2.imshow('Breakout - Agent Gameplay', frame_bgr)
-                
-                # Use a purely greedy policy (no exploration)
+                out.write(frame_bgr)  # write frame to video
+
+                # Greedy action (no exploration)
                 with torch.no_grad():
                     action = self.policy_net(state_tensor).argmax().item()
 
                 observation, reward, terminated, truncated, info = self.env.step(action)
-                
                 total_reward += reward
+                step_count += 1
 
                 next_frame = preprocess_frame(observation)
                 next_state_stack = deque(list(state_stack)[1:] + [next_frame], maxlen=self.frame_stack_size)
                 next_state_tensor = torch.FloatTensor(np.array(next_state_stack)).unsqueeze(0).to(self.device)
-        
-                print("moved")
-                # Move to the next state
+
                 state_stack = next_state_stack
                 state_tensor = next_state_tensor
-                
 
-                # Control frame rate and allow user to quit with 'q'
+                done = terminated or truncated
+
+                # Allow quitting manually
                 if cv2.waitKey(25) & 0xFF == ord('q'):
                     print("Testing interrupted by user.")
-                    done = True # Exit the inner loop
-                    num_episodes = episode # Prevent further episodes
-            
-            print(f"Episode {episode + 1}: Total Reward = {total_reward}")
+                    out.release()
+                    self.env.close()
+                    cv2.destroyAllWindows()
+                    return
+
+            out.release()  # finalize and save video
+
+            print(f"\n🎮 Episode {episode + 1}/{num_episodes}")
+            print(f"   🏆 Total Reward: {total_reward}")
+            print(f"   🔁 Steps per Episode: {step_count}")
+            print(f"   💾 Saved Video: {video_path}")
 
         self.env.close()
         cv2.destroyAllWindows()
-        print("--- ✅ Test Phase Finished ---")
+        print("\n--- ✅ Test Phase Finished ---")

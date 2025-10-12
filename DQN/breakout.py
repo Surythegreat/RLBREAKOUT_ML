@@ -12,15 +12,15 @@ if __name__ == '__main__':
     
     # --- Hyperparameters ---
     config = {
-        'target_update': 10000,
-        'replay_memory_size': 60000,
-        'batch_size': 32,
-        'learning_rate': 0.00025,
+        'target_update': 100,
+        'replay_memory_size': 100000,
+        'batch_size': 64,
+        'learning_rate': 0.00001,
         'epochs': 1000000,
         'gamma': 0.99,
-        'epsilon_start': 1.0,
-        'epsilon_end': 0.005,
-        'epsilon_decay': 1000000,
+        'epsilon_start': 0.1,
+        'epsilon_end': 0.1,
+        'epsilon_decay': 5000,
         'frame_stack_size': 4
     }
     
@@ -41,6 +41,6 @@ if __name__ == '__main__':
     print(f"Using device: {agent.memory.device}")
     
     # --- Start Training ---
-    agent.test(num_episodes=3)
+    agent.test(num_episodes=10)
     
     env.close()

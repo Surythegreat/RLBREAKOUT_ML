@@ -1,28 +1,48 @@
-import gymnasium as gym
-import numpy as np
-from PIL import Image
+# This is a sample Python script.
+
+# Press Shift+F10 to execute it or replace it with your code.
+# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+
+# 22000 was a good epoch.
+
+from breakout import *
+from utils import *
+from agent import *
+from model import *
 import torch
 import os
-from breakout import *
-from model import *
-from agent import *
 
-os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
+import sys
+
+# Set default value for input_file
+input_file = 'latest.pt'
+
+# Check if there are enough arguments to get the value for input_file
+if len(sys.argv) > 1:
+    input_file = sys.argv[1]
+
+input_file = 'models/' + input_file
+
+print(f'Using file: {input_file}')
+
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-environment = DQNBreakout(device=device)
-model = AtariNet(num_actions=4)
+model = AtariNet(nb_actions=4)
 
-model.to(device)
+model.load_the_model(weights_filename=input_file)
 
-model.load_the_model()
+agent = Agent(model=model,
+              device=device,
+              epsilon=0.05,
+              min_epsilon=0.05,
+              nb_warmup=50, # originally 10000
+              nb_actions=4,
+              memory_capacity=20000,
+              batch_size=32)
 
-agent = Agent(model=model,device=device,epsilon=1.0,action_space=4,lr=0.00001,memory_capacity = 1000000,batch_size=64)
+test_environment = DQNBreakout(device=device, render_mode='rgb_array')
 
-agent.test(env = environment)
-# for _ in range(100):
-#     action = environment.action_space.sample()
-#     state,reward,done,info = environment.step(action)
-
-#     print(state.shape)
+agent.test(env=test_environment)

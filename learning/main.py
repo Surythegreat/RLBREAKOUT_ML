@@ -1,34 +1,48 @@
-import gymnasium as gym
-import numpy as np
-from PIL import Image
+# This is a sample Python script.
+
+# Press Shift+F10 to execute it or replace it with your code.
+# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+
+from breakout import *
+from utils import *
+from agent import *
+from model import *
 import torch
 import os
-from breakout import *
-from model import *
-from agent import *
-print(torch.cuda.is_available())
-print(torch.version.cuda)
-print(torch.cuda.device_count())
-print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else "No GPU")
-print(torch.__version__)
 
 
-os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 environment = DQNBreakout(device=device)
-model = AtariNet(num_actions=4)
 
-model.to(device)
-print(device)
+model = AtariNet(nb_actions=4,state_stack=1)
+
 model.load_the_model()
 
-agent = Agent(model=model,device=device,epsilon=.83,action_space=4,lr=0.0001,memory_capacity = 1000000,batch_size=64)
+agent = Agent(model=model,
+              device=device,
+              epsilon=1.0,
+              min_epsilon=0.1,
+              nb_warmup=5000, # was 5,000
+              nb_actions=4,
+              learning_rate=0.00001,
+              memory_capacity=100000,
+              batch_size=64,state_stack=1,epsilon_decay= 0.99964)
 
-agent.train(env = environment,epochs= 2000000)
-# for _ in range(100):
-#     action = environment.action_space.sample()
-#     state,reward,done,info = environment.step(action)
 
-#     print(state.shape)
+agent.train(env=environment, epochs=1000000, batch_identifier=0)
+
+test_environment = DQNBreakout(device=device, render_mode='human')
+
+agent.test(env=test_environment)
+
+
+
+
+
+
+
+# Display the image
+# display_observation_image(state)

@@ -1,184 +1,174 @@
-
-
-import copy
-import random
+from collections import deque
 import torch
+import copy
 import torch.optim as optim
 import torch.nn.functional as F
-from plot import LivePlot
-import numpy as np
 import time
-
-class ReplayMemory:
-    def __init__(self, capacity,device = 'cpu'):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
-        self.device = device
-        self.memory_max_report = 0
-
-    def insert(self, transition):
-        # Move tensors once here
-        transition = tuple(item.detach().cpu() for item in transition)
-        if len(self.memory) < self.capacity:
-            self.memory.append(transition)
-        else:
-            self.memory[self.position] = transition
-        self.position = (self.position + 1) % self.capacity
-
-        
-        
-
-    def sample(self, batch_size=32):
-        batch = random.sample(self.memory, batch_size)
-        state, action, reward, next_state, done = zip(*batch)
-        
-        # Remove extra dimensions if needed
-        state = torch.stack(state).squeeze(1).to(self.device)      # BxCxHxW
-        next_state = torch.stack(next_state).squeeze(1).to(self.device)
-        
-        return (state,
-                torch.stack(action).to(self.device).long(),
-                torch.stack(reward).to(self.device),
-                next_state,
-                torch.stack(done).to(self.device))
+import numpy as np
+# from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+import os
+from buffer import ReplayMemory
+import cv2
+import csv
 
 
 
 
-    def can_sample(self, batch_size):
-        return len(self.memory) >= batch_size
-
-    def __len__(self):
-        return len(self.memory)
-    
 class Agent:
-    def __init__(self, model, device='cpu', epsilon=1.0,min_epsilon=0.1,nb_warmup = 10000, action_space=None, memory_capacity=10000, batch_size=32, gamma=0.99, lr=1e-4):
+
+    def __init__(self, model, device='cpu', epsilon=1.0, min_epsilon=0.1, nb_warmup=10000, nb_actions=None, memory_capacity=10000, batch_size=32, learning_rate=0.00025,state_stack=4,epsilon_decay= 0.99964):
+        self.memory = ReplayMemory(device=device, capacity=memory_capacity)
         self.model = model
         self.target_model = copy.deepcopy(model).eval()
-        self.device = device
-        self.action_space = action_space
-        self.memory = ReplayMemory(device=device, capacity=memory_capacity)
         self.epsilon = epsilon
         self.min_epsilon = min_epsilon
-        self.epsilon_decay=1 - (((epsilon - min_epsilon) / nb_warmup)*2)
+        self.epsilon_decay = epsilon_decay # Find the right value to take epsilon to min_epsilon over 10000 steps
         self.batch_size = batch_size
-        self.model.to(self.device)
-        self.target_model.to(self.device)
-        self.gamma = gammamodel
+        self.model.to(device)
+        self.target_model.to(device)
+        self.gamma = 0.99
+        self.nb_actions = nb_actions
+        self.state_stack = state_stack
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-        print("starting epsilon:",self.epsilon)
-        print("epsilon decay:",self.epsilon_decay)
+        self.optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
-    def select_action(self, state):
-       # In select_action
+        print(f"Starting epsilon is {self.epsilon}")
+        print(f"Epsilon decay is {self.epsilon_decay}")
+
+        if not os.path.exists("./tensorboard_logdir"):
+            os.makedirs("./tensorboard_logdir")
+
+    def get_action(self, state):
         if torch.rand(1) < self.epsilon:
-            return torch.randint(self.action_space, (1,))  # shape [1], not [1,1]
+            return torch.randint(self.nb_actions, (1, 1))
         else:
             av = self.model(state).detach()
-            return torch.argmax(av, dim=1)  # shape [1]
+            return torch.argmax(av, dim=-1, keepdim=True)
 
-       
-    def train(self,env,epochs):
-        stats = {'episode':[], 'reward':[], 'length':[], 'epsilon':[],'returns':[],'avgreturns':[]}
-        plotter = LivePlot()
+    def train(self, env, epochs, batch_identifier=0):
+        # stats = {'AvgReturns': [], 'EpsilonCheckpoint': []}
+        returns_deque = deque(maxlen=100)
+        log_file = 'training_log.csv'
+        with open(log_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Epoch', 'return','loss','epsilon'])
+        # writera = SummaryWriter(log_dir=f"./tensorboard_logdir/{datetime.now().strftime('%Y-%m-%d')}")
 
-        for episode in range(1, epochs + 1):
-            obs = env.reset()
-            # When creating state and next_state
-            state = torch.as_tensor(obs, dtype=torch.float32)
-            if state.ndim == 2:              # grayscale HxW
-                state = state.unsqueeze(0)    # -> 1xHxW
-            elif state.ndim == 3 and state.shape[-1] in [1,3]:  # HxWxC
-                state = state.permute(2,0,1)  # -> CxHxW
-            state = state.to(self.device)
+        for epoch in range(1, epochs + 1):
+            state = env.reset()
+            # state_deque = deque([state] * self.state_stack, maxlen=self.state_stack)
+            # Concatenate the frames in the deque to create the initial stacked state
+            # stacked_state = torch.cat(list(state_deque), dim=1)
 
             done = False
-            ep_return = 0.0
-
-
+            ep_return = 0
+            loss=F.mse_loss(torch.tensor([0.0]),torch.tensor([0.0]))
             while not done:
-                action = self.select_action(state)
-                obs, reward, done, info = env.step(action.item())
-                # next_state: do NOT add extra batch dimension
-                next_state = torch.as_tensor(obs, dtype=torch.float32)
-                if next_state.ndim == 2:
-                    next_state = next_state.unsqueeze(0)
-                elif next_state.ndim == 3 and next_state.shape[-1] in [1,3]:
-                    next_state = next_state.permute(2,0,1)
-                next_state = next_state.to(self.device)
+                action = self.get_action(state)
+                next_state, reward, done, info = env.step(action)
+
+                # next_state_deque = deque(state_deque, maxlen=self.state_stack)
+                # Add the new frame to the next state deque
+                # next_state_deque.append(next_state)
+                # Concatenate the frames to create the next_stacked_state
+                # next_stacked_state = torch.cat(list(next_state_deque), dim=1)
+
+                self.memory.insert([state, action, reward, done, next_state])
 
 
-
-                # Convert reward, done into tensors
-                reward_t = torch.tensor([reward], dtype=torch.float32).to(self.device)
-                done_t = torch.tensor([done], dtype=torch.float32).to(self.device)
-                self.memory.insert((state, action, reward_t, next_state, done_t))                    
-
-
+                # QSA = Q-value, state, action
 
                 if self.memory.can_sample(self.batch_size):
-                    state_b,action_b,reward_b,next_state_b,done_b = self.memory.sample(self.batch_size)
-                    action_b=action_b.long()
-                    # print(state_b.shape)  # should be [batch_size, channels, height, width]
-
-                    qsa_b = self.model(state_b).gather(1,action_b)
-                    next_qsa_b = self.target_model(next_state_b)
-                    next_qsa_b = torch.max(next_qsa_b,dim=1,keepdim=True)[0]
-                    done_b = done_b.float()
-                    target_b = reward_b + self.gamma * next_qsa_b * (1 - done_b)
-                    loss = F.mse_loss(qsa_b,target_b)
-                    self.model.zero_grad(set_to_none=True)
+                    state_b, action_b, reward_b, done_b, next_state_b = self.memory.sample(self.batch_size)
+                    qsa_b = self.model(state_b).gather(1, action_b)
+                    with torch.no_grad():
+                        next_qsa_b = self.target_model(next_state_b)
+                        next_qsa_b = torch.max(next_qsa_b, dim=-1, keepdim=True)[0]
+                        target_b = reward_b + ~done_b * self.gamma * next_qsa_b
+                    loss = F.mse_loss(qsa_b, target_b)
+                    self.model.zero_grad()
                     loss.backward()
                     self.optimizer.step()
-                
 
+
+                # stacked_state = next_stacked_state
+                # The deque also needs to be updated for the next iteration's copy
+                # state_deque.append(next_state)
                 state = next_state
+
                 ep_return += reward.item()
 
-            stats['returns'].append(ep_return)
+            # writera.add_scalar(f'Returns: {batch_identifier}', ep_return, epoch)
+            with open(log_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([epoch,ep_return,loss.item(),self.epsilon])
+
+            returns_deque.append(ep_return)
+
             if self.epsilon > self.min_epsilon:
-                self.epsilon *= self.epsilon_decay
-            print(f"Episode {episode} - Return: {ep_return:.2f} - Epsilon: {self.epsilon:.3f} - Memory Size: {len(self.memory)}")
-            if(episode % 10 == 0):
+                self.epsilon = self.epsilon * self.epsilon_decay
+
+            if epoch % 10 == 0:
                 self.model.save_the_model()
-                print(" ")
+                print("")
 
-                average_return = np.mean(stats['returns'][-100:])
+                
 
-                stats['avgreturns'].append(average_return)
-                stats['episode'].append(episode)
-                stats['reward'].append(reward.item())
-                stats['length'].append(info['lives'])
-                stats['epsilon'].append(self.epsilon)
+                average_returns = np.mean(returns_deque)
 
-                if(len(stats['returns'])>100):
-                    print(f"Episode {episode} - Return: {ep_return:.2f} - Average Return: {average_return:.2f} - Epsilon: {self.epsilon:.3f} - Memory Size: {len(self.memory)}")
-                    
+                
+
+                if (len(returns_deque)) > 100:
+                    print(f"Epoch: {epoch} - Average Return: {average_returns} - Epsilon: {self.epsilon}, loss: {loss}")
                 else:
-                    print(f"Episode {episode} - Return: {ep_return:.2f} - Epsilon: {self.epsilon:.3f} - Memory Size: {len(self.memory)}")
-                    
+                    print(f"Epoch: {epoch} - Episode Return: {average_returns} - Epsilon: {self.epsilon}, loss: {loss}")
 
-            if episode % 100 == 0:
+            if epoch % 100 == 0:
                 self.target_model.load_state_dict(self.model.state_dict())
-                plotter.update(stats)
-                print("Target model updated")
-            if episode % 1000 == 0:
-                self.model.save_the_model(f'models/savedModel/{episode}.Pt')
-                print("Model saved")
-        return stats
-    
-    def test(self,env):
 
-        for epoch in range(1,3):
+            if epoch % 1000 == 0:
+                self.model.save_the_model(f"models/model_iter_{epoch}.pt")
+
+
+        # return stats
+
+    def test(self, env):
+        # self.epsilon = 0 # Usually set to 0 or a very low value for testing
+
+        for epoch in range(1, 3):
             state = env.reset()
-            done =False
+            state_deque = deque([state] * self.state_stack, maxlen=self.state_stack)
+            stacked_state = torch.cat(list(state_deque), dim=1)
+            done = False
 
+            # Loop for the duration of a single episode
             for _ in range(1000):
-                time.sleep(0.01)
-                action = self.select_action(state)
-                state,reward,done,info = env.step(action)
+                time.sleep(0.02)  # Add a small delay to make the visualization smoother
+                # Render the environment to get an image frame as a NumPy array
+                # Note: The render mode 'rgb_array' is standard for many Gym environments
+                frame = env.render()
+
+                # OpenCV displays images in BGR format, but Gym renders in RGB.
+                # We need to convert the color channels.
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                # Display the frame in a window named "Agent Test"
+                cv2.imshow('Agent Test', frame_bgr)
+
+                # This line is crucial for updating the window and processing GUI events.
+                # It also allows you to quit the visualization by pressing the 'q' key.
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+                # Your agent's logic remains the same
+                action = self.get_action(stacked_state)
+                state, reward, done, info = env.step(action)
+                state_deque.append(state)
+                stacked_state = torch.cat(list(state_deque), dim=1)
                 if done:
                     break
 
+        # After all epochs, close the OpenCV window to clean up
+        env.close() # It's good practice to close the environment
+        cv2.destroyAllWindows()

@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-def plot_training_data(log_file='training_log.csv', output_dir='plots'):
+def plot_training_data(log_file='DQN/training_log.csv', output_dir='DQN/plots'):
     """
     Reads the training log and generates a single figure with plots for 
     reward, loss, and epsilon overlaid on one another.
@@ -14,15 +14,25 @@ def plot_training_data(log_file='training_log.csv', output_dir='plots'):
 
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-
-    # Read the data using pandas
     data = pd.read_csv(log_file)
+    print(data.head())
+    max_reward = data['Total Reward'].max()
+    max_loss = data['Loss'].max()
     
-    # Calculate a moving average to smooth the curves (optional but recommended)
-    window_size = 100
-    data['Smoothed Reward'] = data['Total Reward'].rolling(window=window_size, min_periods=1).mean()
-    loss_data = data[data['Loss'] > 0].copy() # Use .copy() to avoid SettingWithCopyWarning
-    loss_data['Smoothed Loss'] = loss_data['Loss'].rolling(window=window_size, min_periods=1).mean() * 10
+    # Filter the DataFrame to get the row(s) with the maximum reward
+    max_reward_data = data[data['Total Reward'] == max_reward]
+    max_loss_data = data[data['Loss'] == max_loss]
+    
+    print("\n--- Data for Maximum 'Total Reward' ---")
+    print(max_reward_data)
+    print("\n--- Data for Maximum 'Loss' ---")
+    print(max_loss_data)
+    # Read the data using pandas
+    data['Smoothed Reward'] = data['Total Reward'].rolling(window=3168, min_periods=1).mean()
+    
+    # --- FIX 2: Use 'Loss' instead of 'loss' ---
+    loss_data = data[data['Loss'] > 0].copy() 
+    loss_data['Smoothed Loss'] = loss_data['Loss'].rolling(window=3168, min_periods=1).mean() * 10
 
     # --- Create a single figure and a primary axis ---
     fig, ax1 = plt.subplots(figsize=(12, 8))
@@ -41,19 +51,19 @@ def plot_training_data(log_file='training_log.csv', output_dir='plots'):
 
     # --- Plot 2: Smoothed Loss (Secondary Y-axis, right) ---
     color = 'tab:orange'
-    ax2.set_ylabel('Loss / Epsilon') # Shared label for the right axis
+    ax2.set_ylabel('Loss / Epsilon', color='tab:gray') # Shared label for the right axis
     ax2.plot(loss_data['Epoch'], loss_data['Smoothed Loss'], color=color, label='Smoothed Loss')
     ax2.tick_params(axis='y')
 
-    # --- Plot 3: Epsilon Decay (Secondary Y-axis, right) ---
+    # --- Plot 3: Epsilon (Secondary Y-axis, right) ---
+    # --- FIX 3: Use 'Epsilon' instead of 'epsilon' ---
     color = 'tab:green'
     ax2.plot(data['Epoch'], data['Epsilon'], color=color, label='Epsilon')
-
+   
     # --- Create a unified legend ---
-    # To avoid overlapping legends, we manually combine them.
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+    # lines1, labels1 = ax1.get_legend_handles_labels()
+    # lines2, labels2 = ax2.get_legend_handles_labels()
+    # ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
 
     # Adjust layout to prevent titles and labels from overlapping
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -65,6 +75,5 @@ def plot_training_data(log_file='training_log.csv', output_dir='plots'):
     
     print(f"📈 Overlaid plot has been saved to '{output_path}'.")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     plot_training_data()
-

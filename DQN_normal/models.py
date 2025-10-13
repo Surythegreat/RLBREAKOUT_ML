@@ -32,12 +32,12 @@ class Model(nn.Module):
         x = self.fc2(x)
         return x
     
-    def save_the_model(self, path='DQN/models/model.pt'):
+    def save_the_model(self, path='DQN_normal/models/model.pt'):
         if not os.path.exists('models'):
             os.makedirs('models')
         torch.save(self.state_dict(), path)
 
-    def load_the_model(self, path='DQN/models/model.pt'):
+    def load_the_model(self, path='DQN_normal/models/model.pt'):
         try:
             self.load_state_dict(torch.load(path))
             print("Model loaded successfully")

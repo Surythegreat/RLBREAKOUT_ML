@@ -1,6 +1,7 @@
 # agent_DQN.py
 
 import math
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -221,60 +222,80 @@ class Agent:
 
     def test(self, num_episodes):
         """
-        Tests the trained agent's performance by rendering the gameplay.
+        Tests the trained agent's performance by rendering and saving gameplay videos.
 
         Args:
-            num_episodes (int): The number of episodes to run for testing.
+            num_episodes (int): Number of episodes to run for testing.
         """
         print("\n--- 🚀 Starting Test Phase ---")
-        self.policy_net.eval()  # Set the network to evaluation mode (no gradients)
+        self.policy_net.eval()  # Evaluation mode (no gradients)
+
+        # Ensure the video output directory exists
+        video_dir = "DDQN/Video"
+        os.makedirs(video_dir, exist_ok=True)
 
         for episode in range(num_episodes):
-            observation, info = self.env.reset() 
-            # Initialize the frame stack
+            observation, info = self.env.reset()
             frame = preprocess_frame(observation)
-            # Stack the first frame 4 times
+
+            # Initialize state stack
             state_stack = deque([frame] * self.frame_stack_size, maxlen=self.frame_stack_size)
-            
-            # Convert the stack to a single tensor
             state_tensor = torch.FloatTensor(np.array(state_stack)).unsqueeze(0).to(self.device)
-            
+
             total_reward = 0
+            step_count = 0
             done = False
-            
+
+            # Get initial rendered frame to determine video resolution
+            frame_rgb = self.env.render()
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            height, width, _ = frame_bgr.shape
+
+            # Set up the video writer
+            video_path = os.path.join(video_dir, f"episode_{episode + 1}.mp4")
+            fps = 30  # target frame rate for saved video
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
+
             while not done:
-                # Render the environment and display it
-                frame = self.env.render()
-                # Gymnasium returns RGB, OpenCV expects BGR, so we convert
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # Render and record current frame
+                frame_rgb = self.env.render()
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 cv2.imshow('Breakout - Agent Gameplay', frame_bgr)
-                
-                # Use a purely greedy policy (no exploration)
+                out.write(frame_bgr)  # write frame to video
+
+                # Greedy action (no exploration)
                 with torch.no_grad():
                     action = self.policy_net(state_tensor).argmax().item()
 
                 observation, reward, terminated, truncated, info = self.env.step(action)
-                
                 total_reward += reward
+                step_count += 1
 
                 next_frame = preprocess_frame(observation)
                 next_state_stack = deque(list(state_stack)[1:] + [next_frame], maxlen=self.frame_stack_size)
                 next_state_tensor = torch.FloatTensor(np.array(next_state_stack)).unsqueeze(0).to(self.device)
-        
-                print("moved")
-                # Move to the next state
+
                 state_stack = next_state_stack
                 state_tensor = next_state_tensor
-                
 
-                # Control frame rate and allow user to quit with 'q'
+                done = terminated or truncated
+
+                # Allow quitting manually
                 if cv2.waitKey(25) & 0xFF == ord('q'):
                     print("Testing interrupted by user.")
-                    done = True # Exit the inner loop
-                    num_episodes = episode # Prevent further episodes
-            
-            print(f"Episode {episode + 1}: Total Reward = {total_reward}")
+                    out.release()
+                    self.env.close()
+                    cv2.destroyAllWindows()
+                    return
+
+            out.release()  # finalize and save video
+
+            print(f"\n🎮 Episode {episode + 1}/{num_episodes}")
+            print(f"   🏆 Total Reward: {total_reward}")
+            print(f"   🔁 Steps per Episode: {step_count}")
+            print(f"   💾 Saved Video: {video_path}")
 
         self.env.close()
         cv2.destroyAllWindows()
-        print("--- ✅ Test Phase Finished ---")
+        print("\n--- ✅ Test Phase Finished ---")

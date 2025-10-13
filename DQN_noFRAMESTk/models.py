@@ -31,13 +31,13 @@ class Model(nn.Module):
         x = self.dropout(x)
         x = self.fc2(x)
         return x
-    
-    def save_the_model(self, path='models/model.pt'):
-        if not os.path.exists('models'):
-            os.makedirs('models')
+
+    def save_the_model(self, path='DQN_noFRAMESTk/models/model.pt'):
+        if not os.path.exists('DQN_noFRAMESTk/models'):
+            os.makedirs('DQN_noFRAMESTk/models')
         torch.save(self.state_dict(), path)
 
-    def load_the_model(self, path='models/model.pt'):
+    def load_the_model(self, path='DQN_noFRAMESTk/models/model.pt'):
         try:
             self.load_state_dict(torch.load(path))
             print("Model loaded successfully")

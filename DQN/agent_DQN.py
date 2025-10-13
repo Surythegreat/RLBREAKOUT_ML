@@ -219,7 +219,7 @@ class Agent:
             self.epsilon = max(self.EPSILON_END, self.epsilon*self.EPSILON_DECAY)
             with open(log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([epoch+31754, total_epoch_reward, self.epsilon, last_loss.item()])
+                writer.writerow([epoch+34886, total_epoch_reward, self.epsilon, last_loss.item()])
 
 
         print("Training finished.")

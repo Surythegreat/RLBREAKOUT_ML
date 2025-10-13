@@ -131,9 +131,9 @@ To evaluate a pre-trained agent, use the evaluation section in the reproduce_res
 
     Load the weights from a saved model file (e.g., models/breakout_dqn.h5).
 
-    Run the evaluation loop, which will render the game and record the agent's performance.
+    Run the test function in agent_DQN file, which will render the game and record the agent's performance.
 
-    A video of the agent playing will be generated and can be viewed directly in the notebook.
+    A video of the agent playing will be generated and can be viewed directly in the folder.
 
 Technologies Used
 
@@ -147,20 +147,3 @@ Technologies Used
 
     OpenCV: For image pre-processing (resizing and grayscaling).
 
-Contributing
-
-Contributions are welcome! If you have any ideas for improvements or find any issues, please open an issue or submit a pull request.
-
-    Fork the Project.
-
-    Create your Feature Branch (git checkout -b feature/AmazingFeature).
-
-    Commit your Changes (git commit -m 'Add some AmazingFeature').
-
-    Push to the Branch (git push origin feature/AmazingFeature).
-
-    Open a Pull Request.
-
-License
-
-This project is distributed under the MIT License. See LICENSE for more information.

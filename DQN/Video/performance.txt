@@ -1,0 +1,51 @@
+🎮 Episode 1/10
+   🏆 Total Reward: 113.0
+   🔁 Steps per Episode: 1631
+   💾 Saved Video: DQN/Video/episode_1.mp4
+
+🎮 Episode 2/10
+   🏆 Total Reward: 193.0
+   🔁 Steps per Episode: 1426
+   💾 Saved Video: DQN/Video/episode_2.mp4
+
+🎮 Episode 3/10
+   🏆 Total Reward: 77.0
+   🔁 Steps per Episode: 1396
+   💾 Saved Video: DQN/Video/episode_3.mp4
+
+🎮 Episode 4/10
+   🏆 Total Reward: 66.0
+   🔁 Steps per Episode: 1555
+   💾 Saved Video: DQN/Video/episode_4.mp4
+
+🎮 Episode 5/10
+   🏆 Total Reward: 268.0
+   🔁 Steps per Episode: 1677
+   💾 Saved Video: DQN/Video/episode_5.mp4
+
+🎮 Episode 6/10
+   🏆 Total Reward: 63.0
+   🔁 Steps per Episode: 1266
+   💾 Saved Video: DQN/Video/episode_6.mp4
+
+🎮 Episode 7/10
+   🏆 Total Reward: 60.0
+   🔁 Steps per Episode: 938
+   💾 Saved Video: DQN/Video/episode_7.mp4
+
+🎮 Episode 8/10
+   🏆 Total Reward: 117.0
+   🔁 Steps per Episode: 1602
+   💾 Saved Video: DQN/Video/episode_8.mp4
+
+🎮 Episode 9/10
+   🏆 Total Reward: 115.0
+   🔁 Steps per Episode: 1516
+   💾 Saved Video: DQN/Video/episode_9.mp4
+
+🎮 Episode 10/10
+   🏆 Total Reward: 63.0
+   🔁 Steps per Episode: 1092
+   💾 Saved Video: DQN/Video/episode_10.mp4
+
+--- ✅ Test Phase Finished ---

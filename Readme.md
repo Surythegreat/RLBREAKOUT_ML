@@ -3,31 +3,29 @@ Reinforcement Learning for Atari Breakout
 This repository contains the code for training a Deep Q-Network (DQN) agent to play the classic Atari game, Breakout. The agent learns to play the game from raw pixel data by interacting with the environment and maximizing its score.
 Table of Contents
 
-    Project Overview
+    1)Project Overview
 
-    Model Architecture
+    2)Model Architecture
 
-    Results
+    3)Results
 
-    Getting Started
+    4)Getting Started
 
-        Prerequisites
+        4.1)Prerequisites
 
-        Installation
+        4.2)Installation
 
-    Usage
+    5)Usage
 
-        Training
+        5.1)Training
 
-        Evaluation
+        5.2)Evaluation
 
-    Technologies Used
+    6)Technologies Used
 
-    Contributing
 
-    License
 
-Project Overview
+1)Project Overview
 
 Breakout is a classic arcade game where the player controls a paddle at the bottom of the screen to bounce a ball and destroy bricks at the top. This project implements a Reinforcement Learning agent that learns an optimal policy for playing this game without any prior knowledge of the rules.
 
@@ -59,27 +57,23 @@ Results
 
 After training for approximately 5 million frames, the agent learns effective strategies, such as carving a tunnel through the bricks to hit them from above. The agent's performance is measured by the average reward obtained over a set of evaluation episodes.
 
-Metric
-	
-
-Value
-
 Training Episodes
 	
 
-~4000
+~35000
 
 Avg. Reward (last 100 episodes)
 	
 
-> 300
+> ~40
 
 Max Reward
 	
 
-~450
+267
 
 Here is a sample of the agent's performance during training:
+ [![Watch the video]()](DQN/Video/episode_5.mp4)
 Getting Started
 
 Follow these instructions to set up the project on your local machine.
@@ -100,15 +94,15 @@ Installation
 
     Create and activate a virtual environment:
 
-    python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    conda create -n newRLEnv
+    conda activate newRLEnv
 
     Install the required packages:
     The project requires the following libraries. You can install them using the reproduce_results.ipynb notebook or manually.
 
-    pip install tensorflow gymnasium[atari] gymnasium[accept-rom-license] numpy opencv-python imageio-ffmpeg
+    conda env create -f environment.yml
 
-    Note: gymnasium[accept-rom-license] is required to automatically accept the Atari ROM license.
+
 
 Usage
 

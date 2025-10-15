@@ -30,6 +30,7 @@ Table of Contents
 Breakout is a classic arcade game where the player controls a paddle at the bottom of the screen to bounce a ball and destroy bricks at the top. This project implements a Reinforcement Learning agent that learns an optimal policy for playing this game without any prior knowledge of the rules.
 
 We use a Deep Q-Network (DQN), a type of model that combines a deep neural network with Q-learning. The neural network takes the game's screen pixels as input and outputs the expected return (Q-value) for each possible action (e.g., move left, move right). The agent uses an epsilon-greedy strategy to balance exploration and exploitation, and a replay buffer to store and sample past experiences, which stabilizes the learning process.
+
 2)Model Architecture
 
 The agent uses a Convolutional Neural Network (CNN) to process the game state. The architecture is inspired by the original DeepMind paper on playing Atari games:
@@ -53,6 +54,7 @@ The agent uses a Convolutional Neural Network (CNN) to process the game state. T
         Output layer with units corresponding to the number of possible actions in the game.
 
 All hidden layers use the ReLU activation function.
+
 3)Results
 
 After training for approximately 3 million frames, the agent learns effective strategies, such as carving a tunnel through the bricks to hit them from above. The agent's performance is measured by the average reward obtained over a set of evaluation episodes.
@@ -74,9 +76,11 @@ Max Reward
 
 Here is a sample of the agent's performance during training:
  [![Watch the video]()](DQN/Video/episode_5.mp4)
+
 4)Getting Started
 
 Follow these instructions to set up the project on your local machine.
+
 4.1)Prerequisites
 
     Python 3.8+
@@ -107,6 +111,7 @@ Follow these instructions to set up the project on your local machine.
 5)Usage
 
 The primary way to interact with this project is through the provided Jupyter Notebook.
+
 5.1)Training
 
 To train a new agent from scratch, open and run all the cells in the reproduce_results.ipynb notebook. The training section will:

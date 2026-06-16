@@ -58,10 +58,10 @@ This isn't just a DQN demo — it's a **systematic comparison** of progressively
 | `DQN_normal/` | Vanilla DQN | Baseline: CNN + Q-learning |
 | `DQN/` | DQN + Frame Stacking | 4-frame temporal stack for motion awareness |
 | `DQN_noFRAMESTk/` | DQN (no stacking) | Ablation: what happens without temporal context |
-| `DQN_SB/` | DQN via Stable-Baselines3 | Framework-level implementation for benchmarking |
+| `DQN_SB/` | DQN via Stable-Baselines3 | Framework-level implementation for benchmarking (MADE WITH GEMINI) |
 | `DDQN/` | Double DQN | Decoupled action selection/evaluation to reduce overestimation |
 | `DDQN_priority_mem/` | DDQN + Prioritized Replay | Sample rare/important transitions more frequently |
-| `PPO/` | Proximal Policy Optimization | Policy gradient alternative — on-policy comparison |
+| `PPO/` | Proximal Policy Optimization | Policy gradient alternative — on-policy comparison(not for consideration) |
 
 Each variant is a self-contained experiment with its own training loop, checkpoints, and video recordings.
 

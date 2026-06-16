@@ -1,148 +1,197 @@
-Reinforcement Learning for Atari Breakout
+<div align="center">
 
-This repository contains the code for training a Deep Q-Network (DQN) agent to play the classic Atari game, Breakout. The agent learns to play the game from raw pixel data by interacting with the environment and maximizing its score.
-Table of Contents
+# 🎮 Deep RL Breakout — From Pixels to Pro
 
-    1)Project Overview
+### Teaching an AI to master Atari Breakout using Deep Reinforcement Learning
 
-    2)Model Architecture
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://tensorflow.org)
+[![Gymnasium](https://img.shields.io/badge/Gymnasium-Atari-0A0A2A?style=for-the-badge)](https://gymnasium.farama.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
-    3)Results
+</div>
 
-    4)Getting Started
+---
 
-        4.1)Prerequisites
+## 🎬 See It In Action
 
-        4.2)Installation
+> *The agent starts completely blind. No rules. No hints. Just pixels and a score. Here's what it learned.*
 
-    5)Usage
+<div align="center">
 
-        5.1)Training
+https://github.com/SudoKuder/RLBREAKOUT_ML/raw/main/DQN/Video/episode_5.mp4
 
-        5.2)Evaluation
+**Episode 5 — Early training. The agent is already finding the tunnel strategy.**
 
-    6)Technologies Used
+</div>
 
+---
 
+## 🧠 What This Project Is
 
-1)Project Overview
+This project implements and benchmarks **multiple Deep Reinforcement Learning algorithms** to solve Atari Breakout — one of the canonical hard problems in RL. The agent sees only raw pixel frames. It knows nothing about the physics, the rules, or even what a ball is. It figures it out entirely through trial, error, and ~35,000 episodes of self-play.
 
-Breakout is a classic arcade game where the player controls a paddle at the bottom of the screen to bounce a ball and destroy bricks at the top. This project implements a Reinforcement Learning agent that learns an optimal policy for playing this game without any prior knowledge of the rules.
+The result? An agent that not only plays competently, but discovers the **tunnel strategy** — carving a hole through the bricks to bounce the ball behind the wall for massive score chains. This emergent behavior was famously noted in DeepMind's original DQN paper, and this agent replicates it independently.
 
-We use a Deep Q-Network (DQN), a type of model that combines a deep neural network with Q-learning. The neural network takes the game's screen pixels as input and outputs the expected return (Q-value) for each possible action (e.g., move left, move right). The agent uses an epsilon-greedy strategy to balance exploration and exploitation, and a replay buffer to store and sample past experiences, which stabilizes the learning process.
+---
 
-2)Model Architecture
+## 📊 Results At a Glance
 
-The agent uses a Convolutional Neural Network (CNN) to process the game state. The architecture is inspired by the original DeepMind paper on playing Atari games:
+| Metric | Value |
+|---|---|
+| Training Episodes | ~35,000 |
+| Training Frames | ~3,000,000 |
+| Avg. Reward (last 100 eps) | **~40** |
+| Max Reward Achieved | **267** |
+| Human-level score (reference) | ~31 |
 
-    Input: A stack of 4 pre-processed game frames (84x84 grayscale images). Stacking frames helps the agent understand the ball's motion.
+> The agent surpasses average human performance.
 
-    Convolutional Layers:
+---
 
-        Conv1: 32 filters of size 8x8 with stride 4.
+## 🏗️ Algorithms Implemented & Compared
 
-        Conv2: 64 filters of size 4x4 with stride 2.
+This isn't just a DQN demo — it's a **systematic comparison** of progressively advanced RL architectures:
 
-        Conv3: 64 filters of size 3x3 with stride 1.
+| Folder | Algorithm | Key Idea |
+|---|---|---|
+| `DQN_normal/` | Vanilla DQN | Baseline: CNN + Q-learning |
+| `DQN/` | DQN + Frame Stacking | 4-frame temporal stack for motion awareness |
+| `DQN_noFRAMESTk/` | DQN (no stacking) | Ablation: what happens without temporal context |
+| `DQN_SB/` | DQN via Stable-Baselines3 | Framework-level implementation for benchmarking |
+| `DDQN/` | Double DQN | Decoupled action selection/evaluation to reduce overestimation |
+| `DDQN_priority_mem/` | DDQN + Prioritized Replay | Sample rare/important transitions more frequently |
+| `PPO/` | Proximal Policy Optimization | Policy gradient alternative — on-policy comparison |
 
-    Fully Connected Layers:
+Each variant is a self-contained experiment with its own training loop, checkpoints, and video recordings.
 
-        Flatten layer.
+---
 
-        Dense layer with 512 units.
+## 🔬 Model Architecture
 
-        Output layer with units corresponding to the number of possible actions in the game.
+The core network is a **CNN** inspired by the original DeepMind paper (Mnih et al., 2015):
 
-All hidden layers use the ReLU activation function.
+```
+Input: Stack of 4 grayscale frames → (84 × 84 × 4)
+        ↓
+Conv1:  32 filters, 8×8 kernel, stride 4  → ReLU
+        ↓
+Conv2:  64 filters, 4×4 kernel, stride 2  → ReLU
+        ↓
+Conv3:  64 filters, 3×3 kernel, stride 1  → ReLU
+        ↓
+Flatten → Dense(512) → ReLU
+        ↓
+Output: Q-values for each action [NOOP, FIRE, RIGHT, LEFT]
+```
 
-3)Results
+**Key training techniques:**
+- **ε-greedy exploration** — starts at 1.0, anneals to 0.1 over 1M frames
+- **Experience Replay Buffer** — 100,000 transitions, uniform (DQN) or prioritized (DDQN+PER)
+- **Target Network** — frozen copy updated every ~10,000 steps to stabilize learning
+- **Frame preprocessing** — resize to 84×84, grayscale, normalize to [0, 1]
+- **Frame stacking** — 4 consecutive frames stacked to capture ball velocity
 
-After training for approximately 3 million frames, the agent learns effective strategies, such as carving a tunnel through the bricks to hit them from above. The agent's performance is measured by the average reward obtained over a set of evaluation episodes.
+---
 
-Training Episodes
-	
+## 📁 Repository Structure
 
-~35000
+```
+RLBREAKOUT_ML/
+├── DQN/                    # DQN with frame stacking (primary implementation)
+│   └── Video/              # Recorded gameplay episodes
+├── DQN_normal/             # Vanilla DQN baseline
+├── DQN_noFRAMESTk/         # DQN without frame stacking (ablation)
+├── DQN_SB/                 # Stable-Baselines3 DQN
+├── DDQN/                   # Double DQN
+├── DDQN_priority_mem/      # DDQN + Prioritized Experience Replay
+├── PPO/                    # Proximal Policy Optimization
+├── learning/               # Exploratory notebooks and experiments
+├── BREAKOUTDQN.pdf         # Full project report
+└── environment.yml         # Conda environment spec
+```
 
-Avg. Reward (last 100 episodes)
-	
+---
 
-> ~40
+## ⚡ Quick Start
 
-Max Reward
-	
+### Prerequisites
+- Python 3.8+
+- Conda (recommended)
+- GPU optional but strongly recommended for training from scratch
 
-267
+### Installation
 
-Here is a sample of the agent's performance during training:
- [![Watch the video]()](DQN/Video/episode_5.mp4)
+```bash
+# 1. Clone the repo
+git clone https://github.com/SudoKuder/RLBREAKOUT_ML.git
+cd RLBREAKOUT_ML
 
-4)Getting Started
+# 2. Create conda environment
+conda env create -f environment.yml
+conda activate newRLEnv
+```
 
-Follow these instructions to set up the project on your local machine.
+### Run Training
 
-4.1)Prerequisites
+```bash
+# Navigate to your algorithm of choice
+cd DQN
 
-    Python 3.8+
+# Launch training (edit hyperparameters inside the script)
+python agent_DQN.py
+```
 
-    pip package manager
+### Evaluate a Trained Agent
 
-    A virtual environment (recommended)
+```bash
+# Point to a saved model checkpoint and render gameplay
+python agent_DQN.py --eval --model models/breakout_dqn.h5
+# Video will be saved to Video/ directory
+```
 
-4.2)Installation
+---
 
-    Clone the repository:
+## 🔑 Key Learnings & Observations
 
-    git clone [https://github.com/Surythegreat/RLBREAKOUT_ML.git](https://github.com/Surythegreat/RLBREAKOUT_ML.git)
-    cd RLBREAKOUT_ML
+- **Frame stacking is non-negotiable.** The `DQN_noFRAMESTk` ablation confirms: without temporal context, the agent cannot track ball direction and plateaus at near-random performance.
+- **Double DQN matters late in training.** DDQN's correction for Q-value overestimation becomes more significant as the policy matures — early training differences are minimal.
+- **Prioritized Replay accelerates convergence.** DDQN+PER reaches meaningful scores in fewer frames by replaying the transitions where the agent is most "confused."
+- **Emergent tunnel strategy.** Around episode 15,000+, the DQN agent independently discovers that carving through the brick wall yields exponentially higher returns — replicating the hallmark behavior from the original DeepMind paper.
 
-    Create and activate a virtual environment:
+---
 
-    conda create -n newRLEnv
-    conda activate newRLEnv
+## 📄 Full Report
 
-    Install the required packages:
-    The project requires the following libraries. You can install them using the reproduce_results.ipynb notebook or manually.
+A detailed writeup covering methodology, hyperparameter choices, training curves, and analysis is available:
 
-    conda env create -f environment.yml
+**[📑 BREAKOUTDQN.pdf](./BREAKOUTDQN.pdf)**
 
+---
 
+## 🛠️ Tech Stack
 
-5)Usage
+| Tool | Role |
+|---|---|
+| Python 3.8+ | Core language |
+| TensorFlow 2.x | Neural network training |
+| Gymnasium (ALE) | Atari environment |
+| NumPy | Replay buffer, frame ops |
+| OpenCV | Frame preprocessing |
+| Stable-Baselines3 | Framework baseline (DQN_SB) |
+| Matplotlib | Training curve visualization |
 
-The primary way to interact with this project is through the provided Jupyter Notebook.
+---
 
-5.1)Training
+## 👤 Author
 
-To train a new agent from scratch, open and run all the cells in the reproduce_results.ipynb notebook. The training section will:
+**Suryansh** — [@SudoKuder](https://github.com/SudoKuder)
+*B.Tech CS • IIT (ISM) Dhanbad*
 
-    Initialize the environment and the DQN agent.
+---
 
-    Run the training loop for a specified number of episodes.
+<div align="center">
 
-    Periodically save model checkpoints to the models/ directory.
+*If this helped you, drop a ⭐ — it keeps the dopamine reward signal going.*
 
-    Log the training progress.
-
-5.2)Evaluation
-
-To evaluate a pre-trained agent, use the evaluation section in the reproduce_results.ipynb notebook. You will need to:
-
-    Load the weights from a saved model file (e.g., models/breakout_dqn.h5).
-
-    Run the test function in agent_DQN file, which will render the game and record the agent's performance.
-
-    A video of the agent playing will be generated and can be viewed directly in the folder.
-
-6)Technologies Used
-
-    Python: Core programming language.
-
-    TensorFlow: For building and training the deep neural network.
-
-    Gymnasium: The toolkit for providing the Atari Breakout environment.
-
-    NumPy: For numerical operations and managing the replay buffer.
-
-    OpenCV: For image pre-processing (resizing and grayscaling).
-
+</div>

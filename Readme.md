@@ -11,7 +11,7 @@
 <br/>
 <b>🏆 1st Place, Research-a-thon</b> — CSAI Society, Dept. of CSE, IIT (ISM) Dhanbad
 <br/>
-<b>Author:</b> Suryansh Kulshreshtha · <a href="BREAKOUTDQN.pdf">Read the paper</a>
+<b>Author:</b> Suryansh Kulshreshtha · <a href="RESEARCH_PAPER_BREAKOUT_MASTER_CHALLENGE.pdf">Read the paper</a>
 
 </div>
 

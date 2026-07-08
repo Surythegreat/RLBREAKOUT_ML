@@ -49,11 +49,7 @@ All hidden layers use ReLU activations.
 
 **Headline run:**
 
-| Metric | Value |
-|---|---|
-| Training Episodes | ~35,000 |
-| Avg. Reward (last 100 episodes) | ~40 |
-| Max Reward | 267 |
+
 
 **Effect of each technique** (from the paper — DQN variants compared over the same training budget):
 

@@ -62,6 +62,27 @@ The fully-tuned agent (DQN + frame stacking + PER) learned to **tunnel** — car
 
 **Demo:**
 
+
+
+<div align="center">
+<table>
+<tr>
+<td align="center">
+<img src="https://github.com/user-attachments/assets/9e7fe992-4061-4eaa-b9d0-935f20308a9d" width="200" alt="Real-time bottle detection screen"/>
+<br/><sub><b>initial</b></sub>
+</td>
+<td align="center">
+<img src="https://github.com/user-attachments/assets/c5ff0f88-f8af-4b41-9fb1-3666160237b0" width="200" alt="Bottle size classification screen"/>
+<br/><sub><b>middle</b></sub>
+</td>
+<td align="center">
+<img src="https://github.com/user-attachments/assets/6d2c79bc-712e-4f4e-b1b0-5f2e2e89fdbd" width="200" alt="Brand recognition screen"/>
+<br/><sub><b>later</b></sub>
+</td>
+
+</table>
+</div>
+
 https://github.com/SudoKuder/RLBREAKOUT_ML/raw/main/DQN/Video/episode_5.mp4
 
 ## Repo Guide

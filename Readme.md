@@ -47,7 +47,6 @@ All hidden layers use ReLU activations.
 
 ## Results
 
-**Headline run:**
 
 
 

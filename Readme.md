@@ -122,27 +122,35 @@ conda env create -f environment.yml
 
 ## Usage
 
-The primary way to interact with this project is through the provided Jupyter notebook, `reproduce_results.ipynb`.
+Each experiment folder (`DQN/`, `DQN_normal/`, `DQN_noFRAMESTk/`, `DDQN/`, `DDQN_priority_mem/`) is self-contained and runs the same way. The main folder to start with is `DQN/`.
 
 ### Training
 
-Open and run all cells in `reproduce_results.ipynb`. This will:
-- Initialize the environment and the DQN agent
-- Run the training loop for the specified number of episodes
-- Periodically save model checkpoints to `models/`
-- Log training progress
+From the repo root:
+
+```bash
+python DQN/breakout.py
+```
+
+This will:
+- Build the `ALE/Breakout-v5` Gymnasium environment and initialize the `Agent` from `agent_DQN.py`
+- Run `agent.train(num_epochs=...)` for the configured number of episodes
+- Periodically save model checkpoints to `DQN/models/model.pt` (PyTorch `state_dict`)
+- Append training progress to `DQN/training_log.csv`, which `plot.py` can turn into the plots in `DQN/plots/`
+
+Swap `DQN/` for any of the other experiment folders (e.g. `python DDQN/breakout.py`) to reproduce a specific ablation.
 
 ### Evaluation
 
-Use the evaluation section of `reproduce_results.ipynb`:
-- Load weights from a saved model file (e.g. `models/breakout_dqn.h5`)
-- Run the test function in `agent_DQN` to render the game and record the agent's performance
-- A video of the agent playing is generated and viewable directly in the corresponding folder
+Switch the call at the bottom of the relevant `breakout.py` from `agent.train(...)` to `agent.test(num_episodes=...)`:
+- Loads the saved weights from `models/model.pt`
+- Runs the agent with rendering enabled and records its performance
+- Saves episode videos to that folder's `Video/` directory (see `DQN/Video/` for examples) and a `performance.txt` summary
 
 ## Technologies Used
 
 - **Python** — core language
-- **TensorFlow** — building and training the deep neural network
+- **PyTorch** — building and training the deep neural network
 - **Gymnasium** (ALE) — the Atari Breakout environment
 - **NumPy** — numerical operations and the replay buffer
 - **OpenCV** — image preprocessing (resizing, grayscaling)

@@ -38,7 +38,7 @@ if __name__ == '__main__':
     )
     print(f"Using device: {agent.memory.device}")
     
-    # --- Start Testing ---
-    agent.test(num_episodes=config['epochs'])
+    # --- Start Training ---
+    agent.train(num_epochs=config['epochs'])
     
     env.close()
